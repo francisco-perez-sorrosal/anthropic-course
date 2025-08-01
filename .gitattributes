@@ -1,0 +1,6 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Version files for semantic release
+src/anthropic_course/__init__.py export-subst
+pyproject.toml export-subst
