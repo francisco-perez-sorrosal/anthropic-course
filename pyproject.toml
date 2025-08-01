@@ -29,7 +29,7 @@ build-backend = "hatchling.build"
 
 [tool.pixi.project]
 name = "anthropic-course"
-version = "0.0.1"
+version = "1.0.0"
 description = "A simple Python toy/POC project"
 authors = ["Francisco Perez-Sorrosal <fperezsorrosal@gmail.com>"]
 license = "MIT"
