@@ -1,6 +1,6 @@
 [project]
 name = "anthropic-course"
-version = "0.0.1"
+version = "0.0.0-dev.1"
 description = "A simple Python toy/POC project"
 authors = [
     {name = "Francisco Perez-Sorrosal", email = "fperezsorrosal@gmail.com"}
@@ -44,6 +44,7 @@ test = "pytest tests/"
 lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
 show_version = "semantic-release version --print --prerelease --prerelease-token dev"
+create_version = "semantic-release version --prerelease --prerelease-token dev"
 publish = "semantic-release publish"
 
 [tool.semantic_release]
