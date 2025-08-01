@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Pixi
+.pixi/
+pixi.lock
+
+# IDE - Cursor and compatibility
+.cursor/
+.vscode/
+*.code-workspace
+.idea/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.dev
+.env.prod
+.env.test
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Documentation
+docs/_build/
+site/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# Data and models (common in ML projects)
+data/
+models/
+*.pkl
+*.joblib
+*.h5
+*.onnx
+
+# Jupyter notebooks (if included)
+notebooks/.ipynb_checkpoints/
+.marimo/

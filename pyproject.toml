@@ -1,0 +1,107 @@
+[project]
+name = "anthropic-course"
+version = "0.0.1"
+description = "A simple Python toy/POC project"
+authors = [
+    {name = "Francisco Perez-Sorrosal", email = "fperezsorrosal@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "loguru>=0.7.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+    "python-semantic-release>=8.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pixi.project]
+name = "anthropic-course"
+version = "0.0.1"
+description = "A simple Python toy/POC project"
+authors = ["Francisco Perez-Sorrosal <fperezsorrosal@gmail.com>"]
+license = "MIT"
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+anthropic-course = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.tasks]
+start = "python -m anthropic_course"
+test = "pytest tests/"
+lint = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
+version = "semantic-release version"
+publish = "semantic-release publish"
+
+[tool.semantic_release]
+version_variable = [
+    "src/anthropic_course/__init__.py:__version__",
+    "pyproject.toml:version",
+]
+version_toml = [
+    "pyproject.toml:tool.pixi.project.version"
+]
+dist_path = "dist/"
+upload_to_pypi = false
+upload_to_release = false
+check_build_status = false
+check_remote = false
+push = false
+build_command = "echo 'Build step disabled for local development'"
+changelog_file = "CHANGELOG.md"
+commit_message = "chore(release): {version} [skip ci]"
+commit_parser = "conventional"
+
+# Remote configuration removed for local development
+# [tool.semantic_release.remote]
+# token = ""
+# url = "https://github.com/mock/anthropic-course.git"
+[tool.semantic_release.commit_parser_options]
+body_patterns = ["^BREAKING CHANGE: (.*)"]
+issue_patterns = ["#(\\d+)"]
+reference_actions = ["closes", "fixes", "resolves"]
+note_keywords = ["BREAKING CHANGE", "BREAKING CHANGES"]
+revert_patterns = ["^Revert \"(.*)\"$", "^This reverts commit (.*)$"]
+
+[tool.semantic_release.version_callback_options]
+version_pattern = "MAJOR.MINOR.PATCH"
+version_variable = "__version__"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = ["E", "F", "I", "N", "W", "B", "C4", "UP", "ARG", "SIM", "TID", "Q"]
+ignore = ["E501", "B008", "C901"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short" 
