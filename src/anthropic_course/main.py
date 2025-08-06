@@ -255,5 +255,107 @@ def main(
     eval_pipeline.run()
 
 
+    BETTER_PROMPT = """
+    Please solve the following task in the best way possible:
+    <task>
+    {task}
+    </task>
+    
+    Demonstrate your Computer Science and Engineering skills, along with your knowledge of Python, cloud infrastructure and unix systems.
+    Focus on the task and only reply with the solution.
+    Use your best judgement to solve the task and don't get distracted.
+    Try to be as concise and efficient as possible. 
+    """
+    
+    console.print(Panel(f"Evaluating default prompt\n'{BETTER_PROMPT}'\nwith three different datasets", border_style="blue"))
+    
+    console.print(Panel("Basic Dataset Prompt", border_style="green"))
+        
+    DS_BASIC_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete. 
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex"
+            },
+            ...additional
+        ]
+        ```
+        Please generate 3 objects.
+        """
+    
+    
+    dataset_generator = DatasetGenerator(DS_BASIC_PROMPT, "basic_dataset.json")
+    grader = Grader(BASIC_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
+    eval_pipeline.run(dataset_file="basic_dataset.json")
+    
+    console.print(Panel("Improved Dataset Prompt", border_style="green"))
+    
+    DS_IMPROVED_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete.
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex"
+            },
+            ...additional
+        ]
+        ```
+
+        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
+        * Focus on tasks that do not require writing much code
+
+        Please generate 3 objects.
+        """
+
+    dataset_generator = DatasetGenerator(DS_IMPROVED_PROMPT, "improved_dataset.json")
+    grader = Grader(BASIC_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
+    eval_pipeline.run(dataset_file="improved_dataset.json")
+
+    console.print(Panel("Best Dataset Prompt", border_style="green"))
+    
+    DS_BEST_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete. It will also include a criteria
+        attribute that describes the criteria for evaluating the task.
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex",
+                "solution_criteria": "A thoughtful criteria for evaluating the task"
+            },
+            ...additional
+        ]
+        ```
+
+        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
+        * Focus on tasks that do not require writing much code
+        * The solution criteria should be related to the task at hand and should be composed by a list of thoughtful arguments for evaluating the task.
+
+        Please generate 3 objects.
+        """
+
+    dataset_generator = DatasetGenerator(DS_BEST_PROMPT, "best_dataset.json")
+    grader = Grader(CRITERIA_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
+    eval_pipeline.run(dataset_file="best_dataset.json")
+
+
 if __name__ == "__main__":
     app()
