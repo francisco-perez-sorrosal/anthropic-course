@@ -14,6 +14,8 @@ dependencies = [
     "rich>=13.0.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
+    "marimo>=0.13.6", 
+    "anthropic>=0.60.0,<0.61", 
 ]
 
 [project.optional-dependencies]
@@ -21,6 +23,7 @@ dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
     "python-semantic-release>=8.0.0",
+    "ipykernel>=6.30.1,<7",
 ]
 
 [build-system]
@@ -43,8 +46,8 @@ start = "python -m anthropic_course"
 test = "pytest tests/"
 lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
-show_version = "semantic-release version --print --prerelease --prerelease-token dev"
-create_version = "semantic-release version --prerelease --prerelease-token dev"
+version = "pixi run --environment dev semantic-release version --print --prerelease --prerelease-token dev"
+bump_version = "pixi run --environment dev semantic-release version --prerelease --prerelease-token dev"
 publish = "semantic-release publish"
 
 [tool.semantic_release]

@@ -9,6 +9,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from anthropic_course.dataset_generator import DatasetGenerator
+from anthropic_course.eval_pipeline import EvalPipeline
+from anthropic_course.grader import Grader
+
 from .logger import get_logger
 from . import __version__
 
@@ -107,6 +111,148 @@ def main(
     # Success message
     success_text = Text("✅ All systems operational!", style="bold green")
     console.print(Panel(success_text, border_style="blue"))
+    
+    #########################################################
+    # Eval Pipeline
+    #########################################################
+    
+    BASIC_EVAL_PROMPT = """
+    You are an expert code reviewer. Evaluate this AI-generated solution.
+    
+    Task: 
+    <task>
+    {task}
+    </task>
+    
+    Solution: 
+    <solution>
+    {solution}
+    </solution>
+        
+    Output format
+    Provide your evaluation as a structured JSON object with the following fields:
+    - "strengths": An array of 1-3 key strengths
+    - "weaknesses": An array of 1-3 key areas for improvement  
+    - "reasoning": A concise explanation of your assessment
+    - "score": A number between 1-10
+    """
+    
+    CRITERIA_EVAL_PROMPT = """
+    You are an expert code reviewer. Evaluate this AI-generated solution.
+    
+    Task: 
+    <task>
+    {task}
+    </task>
+    
+    Solution: 
+    <solution>
+    {solution}
+    </solution>
+    
+    Criteria you should use to evaluate the solution:
+    <solution_criteria>
+    {solution_criteria}
+    </solution_criteria>
+    
+    Output format
+    Provide your evaluation as a structured JSON object with the following fields:
+    - "strengths": An array of 1-3 key strengths
+    - "weaknesses": An array of 1-3 key areas for improvement  
+    - "reasoning": A concise explanation of your assessment
+    - "score": A number between 1-10
+    """    
+    
+    DEFAULT_PROMPT = "Please solve the following task: {task}"
+    
+    console.print(Panel(f"Evaluating default prompt\n'{DEFAULT_PROMPT}'\nwith three different datasets", border_style="blue"))
+    
+    console.print(Panel("Basic Dataset Prompt", border_style="green"))
+        
+    DS_BASIC_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete. 
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex"
+            },
+            ...additional
+        ]
+        ```
+        Please generate 3 objects.
+        """
+    
+    
+    dataset_generator = DatasetGenerator(DS_BASIC_PROMPT, "basic_dataset.json")
+    grader = Grader(BASIC_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
+    eval_pipeline.run()
+    
+    console.print(Panel("Improved Dataset Prompt", border_style="green"))
+    
+    DS_IMPROVED_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete.
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex"
+            },
+            ...additional
+        ]
+        ```
+
+        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
+        * Focus on tasks that do not require writing much code
+
+        Please generate 3 objects.
+        """
+
+    dataset_generator = DatasetGenerator(DS_IMPROVED_PROMPT, "improved_dataset.json")
+    grader = Grader(BASIC_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
+    eval_pipeline.run()
+
+    console.print(Panel("Best Dataset Prompt", border_style="green"))
+    
+    DS_BEST_PROMPT = """
+        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
+        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
+        each representing task that requires Python, JSON, or a Regex to complete. It will also include a criteria
+        attribute that describes the criteria for evaluating the task.
+
+        Example output:
+        ```json
+        [
+            {
+                "task": "Description of task",
+                "format": "python" | "json" | "regex",
+                "solution_criteria": "A thoughtful criteria for evaluating the task"
+            },
+            ...additional
+        ]
+        ```
+
+        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
+        * Focus on tasks that do not require writing much code
+        * The solution criteria should be related to the task at hand and should be composed by a list of thoughtful arguments for evaluating the task.
+
+        Please generate 3 objects.
+        """
+
+    dataset_generator = DatasetGenerator(DS_BEST_PROMPT, "best_dataset.json")
+    grader = Grader(CRITERIA_EVAL_PROMPT)
+    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
+    eval_pipeline.run()
 
 
 if __name__ == "__main__":

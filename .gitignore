@@ -71,3 +71,7 @@ models/
 # Jupyter notebooks (if included)
 notebooks/.ipynb_checkpoints/
 .marimo/
+
+# JSON files for datasets
+*dataset*.json
+please*.json
