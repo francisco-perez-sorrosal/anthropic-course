@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from anthropic_course.conversation import Conversation
 from anthropic_course.dataset_generator import DatasetGenerator
 from anthropic_course.eval_pipeline import EvalPipeline
 from anthropic_course.grader import Grader
@@ -116,245 +117,126 @@ def main(
     # Eval Pipeline
     #########################################################
     
-    BASIC_EVAL_PROMPT = """
-    You are an expert code reviewer. Evaluate this AI-generated solution.
     
-    Task: 
-    <task>
-    {task}
-    </task>
+    goal = "Write a compact, concise suggestion for a dietary supplememnts for a person"
     
-    Solution: 
-    <solution>
-    {solution}
-    </solution>
-        
-    Output format
-    Provide your evaluation as a structured JSON object with the following fields:
-    - "strengths": An array of 1-3 key strengths
-    - "weaknesses": An array of 1-3 key areas for improvement  
-    - "reasoning": A concise explanation of your assessment
-    - "score": A number between 1-10
+    prompt_inputs_spec={
+        "goal": "Goal of the person. (e.g. improve health, lose weight, etc.)",
+        "height": "Person's height in cm",
+        "weight": "Person's weight in kg", 
+        "age": "Person's age in years",
+        "gender": "Person's gender",
+        "current_health_status": "Person's subjective view of their health status. (e.g. from 1 to 10, 10 being the best)",
+        "chronic_conditions": "Person's chronic conditions. (e.g. diabetes, hypertension, etc.)",
+        "current_medications": "Person's current medications. (e.g. blood pressure medication, diabetes medication, etc.)",
+        "dietary_preferences": "Dietary preferences of the person. (e.g. vegan, vegetarian, paleo, etc.)",
+        "dietary_restrictions": "Dietary restrictions of the person",
+        "physical_activity_level": "Person's physical activity level (sedentary, light, moderate, high)",
+        "current_supplements": "Current supplements of the person. (e.g. vitamins, minerals, etc.)"
+    }
+    
+    dataset_generator = DatasetGenerator(task_description=goal, prompt_inputs_spec=prompt_inputs_spec, filename="dataset.json")
+    # dataset_generator.run(num_cases=10, max_parallel_tasks=3)
+    
+    extra_criteria="""
+        The output should include:
+        - Goal/subgoal breakdown and which supplements are needed to achieve it
+        - The supplements will include exact quantity and frequency
+        - Reasoning how the supplement suggestion will help the person achieve the goal, and/or help with chronic conditions
+        - Interactions with other supplements and medications (if any)
+        - Scientific evidence for the suggestion
     """
-    
-    CRITERIA_EVAL_PROMPT = """
-    You are an expert code reviewer. Evaluate this AI-generated solution.
-    
-    Task: 
-    <task>
-    {task}
-    </task>
-    
-    Solution: 
-    <solution>
-    {solution}
-    </solution>
-    
-    Criteria you should use to evaluate the solution:
-    <solution_criteria>
-    {solution_criteria}
-    </solution_criteria>
-    
-    Output format
-    Provide your evaluation as a structured JSON object with the following fields:
-    - "strengths": An array of 1-3 key strengths
-    - "weaknesses": An array of 1-3 key areas for improvement  
-    - "reasoning": A concise explanation of your assessment
-    - "score": A number between 1-10
-    """    
-    
-    DEFAULT_PROMPT = "Please solve the following task: {task}"
-    
-    console.print(Panel(f"Evaluating default prompt\n'{DEFAULT_PROMPT}'\nwith three different datasets", border_style="blue"))
-    
-    console.print(Panel("Basic Dataset Prompt", border_style="green"))
+
+    #########################################################
+    # Basic Prompt
+    #########################################################
+
+    def basic_prompt(prompt_inputs):
+        prompt = f"""
+        What should this person take as suplement?
         
-    DS_BASIC_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete. 
-
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex"
-            },
-            ...additional
-        ]
-        ```
-        Please generate 3 objects.
+        Goal: {prompt_inputs["goal"]}
+        Height: {prompt_inputs["height"]}
+        Weight: {prompt_inputs["weight"]}
+        Dietary Restrictions: {prompt_inputs["dietary_restrictions"]}
         """
+        conversation = Conversation(max_tokens=1000)
+        return conversation.chat(role="user", text=prompt, temperature=0.0)    
     
-    
-    dataset_generator = DatasetGenerator(DS_BASIC_PROMPT, "basic_dataset.json")
-    grader = Grader(BASIC_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
-    eval_pipeline.run()
-    
-    console.print(Panel("Improved Dataset Prompt", border_style="green"))
-    
-    DS_IMPROVED_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete.
+    grader = Grader()
+    eval_pipeline = EvalPipeline(dataset_generator=dataset_generator, grader=grader, prompt_function=basic_prompt)
+    eval_pipeline.run(extra_criteria=extra_criteria, dataset_file="dataset.json", run_syntax_grade=False)
 
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex"
-            },
-            ...additional
-        ]
-        ```
+    #########################################################
+    # Advanced Prompt
+    #########################################################
 
-        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
-        * Focus on tasks that do not require writing much code
+    def advanced_prompt(prompt_inputs):
+        prompt = f"""
+        Generate a dietary supplement plan for a person that meets it's goals.
 
-        Please generate 3 objects.
+            <person_information> 
+            - Goal: {prompt_inputs["goal"]}
+            - Height: {prompt_inputs["height"]} cm
+            - Weight: {prompt_inputs["weight"]} kg
+            - Age: {prompt_inputs["age"]} years
+            - Gender: {prompt_inputs["gender"]}
+            - Current health status: {prompt_inputs["current_health_status"]}
+            - Chronic conditions: {prompt_inputs["chronic_conditions"]}
+            - Current medications: {prompt_inputs["current_medications"]}
+            - Dietary preferences: {prompt_inputs["dietary_preferences"]}
+            - Dietary restrictions: {prompt_inputs["dietary_restrictions"]}
+            - Physical activity level: {prompt_inputs["physical_activity_level"]}
+            - Current supplements: {prompt_inputs["current_supplements"]}
+            </person_information>
+
+            Guidelines:
+            1. Include accurate daily supplement amount (in mg, g, etc.)
+            2. Show which supplements are needed to achieve the goal
+            3. Specify when to take each supplement
+            4. Use only supplements that fit restrictions
+            5. List all supplement amounts in mg, g, etc.
+            6. Add scientific substantiation and comprehensive medication interaction analysis (if necessary)
+            7. Keep budget-friendly if mentioned
+
+            Here is an example with a sample input and an ideal output:
+            <sample_input>
+            goal: Improve overall health and reduce risk of osteoporosis
+            height: 170
+            weight: 70
+            age: 30
+            gender: Male
+            current_health_status: 8
+            chronic_conditions: None
+            current_medications: None
+            dietary_preferences: Vegan
+            dietary_restrictions: None
+            physical_activity_level: Sedentary
+            current_supplements: None
+            </sample_input>
+            <ideal_output>
+            Here is a dietary supplement plan for a person aiming to improve health:
+
+            * Goal: Improve health
+                * Subgoal: Improve bone health
+                    *   **Vitamin D3:** 1000 IU
+                        - Vitamin D is important for bone health and immune system support.
+                        - Scientific evidence shows that Vitamin D3 can help improve bone health and reduce the risk of osteoporosis.
+                * Subgoal: Improve red blood cell production
+                    *   **Vitamin B12:** 1000 mcg
+                        - Vitamin B12 is important for red blood cell production and nerve function.
+                        - Scientific evidence shows that Vitamin B12 can help improve red blood cell production and nerve function.
+
+            This supplement plan prioritizes vitamins and minerals to support the person's health.
+            </ideal_output>
+            This example supplement plan is well-structured, provides detailed information on supplement choices and quantities, and aligns with the person's goals and restrictions.
         """
+        conversation = Conversation(max_tokens=1000)
+        return conversation.chat(role="user", text=prompt, temperature=0.0)  
 
-    dataset_generator = DatasetGenerator(DS_IMPROVED_PROMPT, "improved_dataset.json")
-    grader = Grader(BASIC_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
-    eval_pipeline.run()
-
-    console.print(Panel("Best Dataset Prompt", border_style="green"))
-    
-    DS_BEST_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete. It will also include a criteria
-        attribute that describes the criteria for evaluating the task.
-
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex",
-                "solution_criteria": "A thoughtful criteria for evaluating the task"
-            },
-            ...additional
-        ]
-        ```
-
-        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
-        * Focus on tasks that do not require writing much code
-        * The solution criteria should be related to the task at hand and should be composed by a list of thoughtful arguments for evaluating the task.
-
-        Please generate 3 objects.
-        """
-
-    dataset_generator = DatasetGenerator(DS_BEST_PROMPT, "best_dataset.json")
-    grader = Grader(CRITERIA_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=DEFAULT_PROMPT)
-    eval_pipeline.run()
-
-
-    BETTER_PROMPT = """
-    Please solve the following task in the best way possible:
-    <task>
-    {task}
-    </task>
-    
-    Demonstrate your Computer Science and Engineering skills, along with your knowledge of Python, cloud infrastructure and unix systems.
-    Focus on the task and only reply with the solution.
-    Use your best judgement to solve the task and don't get distracted.
-    Try to be as concise and efficient as possible. 
-    """
-    
-    console.print(Panel(f"Evaluating default prompt\n'{BETTER_PROMPT}'\nwith three different datasets", border_style="blue"))
-    
-    console.print(Panel("Basic Dataset Prompt", border_style="green"))
-        
-    DS_BASIC_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete. 
-
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex"
-            },
-            ...additional
-        ]
-        ```
-        Please generate 3 objects.
-        """
-    
-    
-    dataset_generator = DatasetGenerator(DS_BASIC_PROMPT, "basic_dataset.json")
-    grader = Grader(BASIC_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
-    eval_pipeline.run(dataset_file="basic_dataset.json")
-    
-    console.print(Panel("Improved Dataset Prompt", border_style="green"))
-    
-    DS_IMPROVED_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete.
-
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex"
-            },
-            ...additional
-        ]
-        ```
-
-        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
-        * Focus on tasks that do not require writing much code
-
-        Please generate 3 objects.
-        """
-
-    dataset_generator = DatasetGenerator(DS_IMPROVED_PROMPT, "improved_dataset.json")
-    grader = Grader(BASIC_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
-    eval_pipeline.run(dataset_file="improved_dataset.json")
-
-    console.print(Panel("Best Dataset Prompt", border_style="green"))
-    
-    DS_BEST_PROMPT = """
-        Generate a evaluation dataset for a prompt evaluation. The dataset will be used to evaluate prompts
-        that generate Python, JSON, or Regex specifically for AWS-related tasks. Generate an array of JSON objects,
-        each representing task that requires Python, JSON, or a Regex to complete. It will also include a criteria
-        attribute that describes the criteria for evaluating the task.
-
-        Example output:
-        ```json
-        [
-            {
-                "task": "Description of task",
-                "format": "python" | "json" | "regex",
-                "solution_criteria": "A thoughtful criteria for evaluating the task"
-            },
-            ...additional
-        ]
-        ```
-
-        * Focus on tasks that can be solved by writing a single Python function, a single JSON object, or a regular expression.
-        * Focus on tasks that do not require writing much code
-        * The solution criteria should be related to the task at hand and should be composed by a list of thoughtful arguments for evaluating the task.
-
-        Please generate 3 objects.
-        """
-
-    dataset_generator = DatasetGenerator(DS_BEST_PROMPT, "best_dataset.json")
-    grader = Grader(CRITERIA_EVAL_PROMPT)
-    eval_pipeline = EvalPipeline(dataset_generator, grader, prompt=BETTER_PROMPT)
-    eval_pipeline.run(dataset_file="best_dataset.json")
+    grader = Grader()
+    eval_pipeline = EvalPipeline(dataset_generator=dataset_generator, grader=grader, prompt_function=advanced_prompt)
+    eval_pipeline.run(extra_criteria=extra_criteria, run_syntax_grade=False)
 
 
 if __name__ == "__main__":

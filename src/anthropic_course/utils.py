@@ -90,13 +90,13 @@ def generate_filename_from_prompt(prompt: str, extension: str = "json") -> str:
     # Clean the prompt: remove special characters and convert to lowercase
     cleaned_prompt = re.sub(r'[^a-zA-Z0-9\s]', '', prompt.lower())
     
-    # Get meaningful text (at least 3 characters, up to 15)
+    # Get meaningful text (at least 3 characters, up to 25)
     meaningful_text = cleaned_prompt.strip()
     if len(meaningful_text) < 3:
         meaningful_text = "prompt"  # Fallback if no meaningful text
     
-    # Take first 15 characters, but don't pad with 'x'
-    first_chars = meaningful_text[:15]
+    # Take first 25 characters, but don't pad with 'x'
+    first_chars = meaningful_text[:25]
     
     # Generate UUID (version 4 - random)
     unique_id = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID for shorter filename
@@ -124,7 +124,7 @@ def generate_filename_from_prompt_function(prompt_function, extension: str = "js
     return generate_filename_from_prompt(prompt_text, extension)
 
 def generate_prompt_evaluation_report(evaluation_results):
-    total_tests = len(evaluation_results)
+    total_tests = len(evaluation_results["results"])
     scores = [result["score"] for result in evaluation_results["results"]]
     avg_score = mean(scores) if scores else 0
     max_possible_score = 10

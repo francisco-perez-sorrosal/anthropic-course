@@ -52,11 +52,11 @@ class EvalPipeline:
             "weaknesses": model_grade["weaknesses"]
         }
     
-    def run(self, extra_criteria:str | None = None, dataset_file:str | None = None, run_syntax_grade:bool = False) -> dict:
+    def run(self, extra_criteria:str | None = None, dataset_file:str | None = None, num_cases:int = 5, run_syntax_grade:bool = False) -> dict:
         """Loads the dataset and calls run_test_case with each case"""
         if not dataset_file:
             if not self.dataset:
-                dataset_file = self.dataset_generator.run()
+                dataset_file = self.dataset_generator.run(num_cases=num_cases)
                 self.dataset = self.load_dataset(dataset_file)
             else:
                 logger.warning("Using cached dataset")
