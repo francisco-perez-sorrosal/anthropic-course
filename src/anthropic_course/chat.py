@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING, Union
 from anthropic_course.conversation import Conversation
 from anthropic import NOT_GIVEN, NotGiven
 from rich.console import Console
@@ -23,12 +23,15 @@ class Chat:
         self.console = Console()
         self.console.print(Panel(f"I'm {model} and I'm limited to Max tokens: {max_tokens}"))
 
-    def run(self, temperature:float = 0.0, prefill_text:str | None = None, stop_sequences=["```"], tools:list["Tool"] | list[dict[str, Any]] = [], streaming:bool = False):
+    def run(self, temperature:float = 0.0, prefill_text:str | None = None, stop_sequences=["```"], tools:list[Union["Tool", dict[str, Any]]] = [], streaming:bool = False):
         while True:
-            try:
+            try:                
+                # Skip empty input
                 self.console.print(Rule("[bold blue]User[/bold blue]"))
                 user_input = input("> ")
-                # console.print(f"> {user_input}")
+                if not user_input.strip():
+                    continue
+                    
                 message, text = self.conversation.chat(role="user", 
                                                        text=user_input, 
                                                        prefill_text=prefill_text, 
@@ -73,17 +76,17 @@ def main(
         input_schema=set_reminder_schema["input_schema"]
     )
     
-    # Text editor tool is schema-less and doesn't need input_schema
-    # text_editor_tool = get_text_edit_schema(model)
-    text_editor_tool = create_tool(
-        name="str_replace_editor",
-        description="Edits a text file. This tool allows the user to perform various operations on a text file, including viewing its contents, replacing specific text, creating new files, inserting text at specific lines, and undoing previous edits. It should be used when a user wants to modify or create a text file, or when they need to undo previous changes. The tool provides a flexible and efficient way to manage text files with a focus on simplicity and ease of use.",
-        function=None,
-        input_schema=get_text_edit_schema(model)
-    )
+    
+    text_editor_tool = get_text_edit_schema(model)
+        
+    web_search_tool = {
+        "type": "web_search_20250305",
+        "name": "web_search", 
+        "max_uses": 1
+    }
         
     # chat.run(tools=[get_current_datetime_tool, add_duration_to_datetime_tool, set_reminder_tool, text_editor_tool], streaming=streaming)
-    chat.run(tools=[get_current_datetime_tool,text_editor_tool], streaming=streaming)
+    chat.run(tools=[get_current_datetime_tool, text_editor_tool, web_search_tool], streaming=streaming)
 
 if __name__ == "__main__":
     typer.run(main)

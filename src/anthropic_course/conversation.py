@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, List, TYPE_CHECKING
+from typing import Any, Callable, List, TYPE_CHECKING, Union
 from anthropic import NOT_GIVEN, Anthropic, NotGiven
 from anthropic.types import Message
 import loguru
@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from .tools import Tool
 
 logger = loguru.logger
-
-
 
 
 class Conversation:
@@ -70,7 +68,7 @@ class Conversation:
             raise Exception(f"Unknown text editor command: {command}")
 
 
-    def _run_tools(self, tools: List["Tool"], message: Message):
+    def _run_tools(self, tools: List[Union["Tool", dict[str, Any]]], message: Message):
         # TODO Parallelize tool calls
         tool_requests = [block for block in message.content if block.type == "tool_use"]
         tool_result_blocks = []
@@ -80,7 +78,18 @@ class Conversation:
                 # Find the matching tool in the tools list
                 matching_tool = None
                 for tool in tools:
-                    if hasattr(tool, 'name') and tool.name == tool_request.name:
+                    if isinstance(tool, dict):
+                        # Dictionary tool (like text editor)
+                        if tool.get("name") == tool_request.name:
+                            match tool.get("name"):
+                                case "str_replace_editor":
+                                    # For text editor tool, we need to handle it specially
+                                    matching_tool = self._run_text_editor_tool
+                                case "web_search":
+                                    # For web search tool, we need to handle it specially
+                                    matching_tool = tool
+                            break
+                    elif hasattr(tool, 'name') and tool.name == tool_request.name:
                         matching_tool = tool
                         if tool.name == "str_replace_editor":
                             # For text editor tool, we need to handle it specially
@@ -111,7 +120,11 @@ class Conversation:
                     result = matching_tool(tool_input)
                 else:
                     # For Tool objects, use the execute method
-                    result = matching_tool.execute(tool_input)
+                    execute_method = getattr(matching_tool, 'execute', None)
+                    if execute_method is not None:
+                        result = execute_method(tool_input)
+                    else:
+                        raise ValueError(f"Tool {tool_request.name} has no execute method")
                 
                 tool_result_block = {
                     "type": "tool_result",
@@ -140,7 +153,7 @@ class Conversation:
              temperature:float = 0.0, 
              streaming:bool = True, 
              stop_sequences:list[str] = [], 
-             tools:List["Tool"] = []) -> tuple[Message, str]:
+             tools:List[Union["Tool", dict[str, Any]]] = []) -> tuple[Message, str]:
         self._add_message(role, text)
         self.params["system"] = self.system_msg
         self.params["messages"] = self.messages
@@ -164,6 +177,10 @@ class Conversation:
                     # For regular Tool objects, use to_anthropic_format
                     anthropic_tools.append(tool.to_anthropic_format())
         self.params["tools"] = anthropic_tools
+        if self.params["model"].startswith("claude-3-5"):
+            logger.warning("Using computer-use-2024-10-22 beta for claude-3-5 models")
+            logger.warning("Current tools: ", tools)
+            self.params["beta"] = ["computer-use-2024-10-22"]
         if prefill_text:
             self._add_message("assistant", prefill_text)
         if streaming:
