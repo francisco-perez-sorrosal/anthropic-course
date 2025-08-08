@@ -42,6 +42,7 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tool.pixi.tasks]
+chat = "python -m anthropic_course.chat"
 start = "python -m anthropic_course"
 test = "pytest tests/"
 lint = "ruff check src/ tests/"
