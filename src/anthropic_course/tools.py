@@ -18,7 +18,7 @@ class Tool(BaseModel):
     """
     name: str = Field(..., description="The name of the tool")
     description: str = Field(..., description="Description of what the tool does")
-    function: Callable = Field(..., description="The Python function to execute")
+    function: Callable | None = Field(..., description="The Python function to execute")
     input_schema: Dict[str, Any] = Field(..., description="JSON schema defining the expected input parameters")
     
     class Config:
@@ -47,6 +47,9 @@ class Tool(BaseModel):
         Returns:
             The result of executing the tool function
         """
+        if self.function is None:
+            logger.warning(f"Tool {self.name} has no associated function, returning None")
+            return None
         
         if not self._validate_request_params(tool_request_params):
             raise ValueError(f"Invalid tool request for {self.name}")
@@ -116,7 +119,7 @@ class Tool(BaseModel):
         
         return params
 
-def create_tool(name: str, description: str, function: Callable, input_schema: Dict[str, Any]) -> Tool:
+def create_tool(name: str, description: str, function: Callable | None, input_schema: Dict[str, Any]) -> Tool:
     """
     Create a Tool instance with the given parameters.
     

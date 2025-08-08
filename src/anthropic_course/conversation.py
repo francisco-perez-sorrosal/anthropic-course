@@ -6,10 +6,15 @@ import loguru
 from rich.console import Console
 from rich.rule import Rule
 
+from anthropic_course.text_editor import TextEditor
+
 if TYPE_CHECKING:
     from .tools import Tool
 
 logger = loguru.logger
+
+
+
 
 class Conversation:
     def __init__(self, model:str = "claude-3-5-haiku-20241022", max_tokens:int = 10, system_msg:str | NotGiven = NOT_GIVEN):
@@ -21,6 +26,7 @@ class Conversation:
         self.system_msg = system_msg
         self.messages = []
         self.console = Console()
+        self.text_editor = TextEditor()
 
     def _add_message(self, role:str, message: Message | list[Message] | str | None):
         if not message:
@@ -32,8 +38,37 @@ class Conversation:
                 raise ValueError(f"Invalid role: {role}")
         self.messages.append(new_message)
 
+
     def text_from_message(self, message: Message) -> str:
         return "\n".join([block.text for block in message.content if block.type == "text"])
+
+
+    def _run_text_editor_tool(self, tool_input):
+        logger.info(f"Running text editor tool with input: {tool_input}")
+        command = tool_input["command"]
+        if command == "view":
+            return self.text_editor.view(
+                tool_input["path"], tool_input.get("view_range")
+            )
+        elif command == "str_replace":
+            return self.text_editor.str_replace(
+                tool_input["path"], tool_input["old_str"], tool_input["new_str"]
+            )
+        elif command == "create":
+            return self.text_editor.create(
+                tool_input["path"], tool_input["file_text"]
+            )
+        elif command == "insert":
+            return self.text_editor.insert(
+                tool_input["path"],
+                tool_input["insert_line"],
+                tool_input["new_str"],
+            )
+        elif command == "undo_edit":
+            return self.text_editor.undo_edit(tool_input["path"])
+        else:
+            raise Exception(f"Unknown text editor command: {command}")
+
 
     def _run_tools(self, tools: List["Tool"], message: Message):
         # TODO Parallelize tool calls
@@ -42,11 +77,14 @@ class Conversation:
         
         for tool_request in tool_requests:
             try:
-                # Find the matching tool
+                # Find the matching tool in the tools list
                 matching_tool = None
                 for tool in tools:
-                    if tool.name == tool_request.name:
+                    if hasattr(tool, 'name') and tool.name == tool_request.name:
                         matching_tool = tool
+                        if tool.name == "str_replace_editor":
+                            # For text editor tool, we need to handle it specially
+                            matching_tool = self._run_text_editor_tool
                         break
                 
                 if matching_tool is None:
@@ -65,9 +103,15 @@ class Conversation:
                         case _:
                             logger.warning(f"Unexpected tool input type: {type(tool_request.input)}")
                             tool_input = {}
+                logger.info(f"Tool input: {tool_input}")
                 
-                # Execute the tool using the Tool.execute method
-                result = matching_tool.execute(tool_input)
+                # Execute the tool
+                if callable(matching_tool) and not hasattr(matching_tool, 'execute'):
+                    # For special tools like the text editor tool, call the function directly
+                    result = matching_tool(tool_input)
+                else:
+                    # For Tool objects, use the execute method
+                    result = matching_tool.execute(tool_input)
                 
                 tool_result_block = {
                     "type": "tool_result",
@@ -103,7 +147,22 @@ class Conversation:
         self.params["temperature"] = temperature
         self.params["stop_sequences"] = stop_sequences
         # Convert Tool objects to Anthropic format for the API
-        anthropic_tools = [tool.to_anthropic_format() for tool in tools]
+        anthropic_tools = []
+        for tool in tools:
+            if isinstance(tool, dict):
+                # It's already a dictionary (like text editor tool)
+                anthropic_tools.append(tool)
+            else:
+                # Check if it's a text editor tool
+                if hasattr(tool, 'name') and tool.name == "str_replace_editor":
+                    # For text editor tool, use the proper format
+                    anthropic_tools.append({
+                        "type": "text_editor_20250124",
+                        "name": "str_replace_editor"
+                    })
+                else:
+                    # For regular Tool objects, use to_anthropic_format
+                    anthropic_tools.append(tool.to_anthropic_format())
         self.params["tools"] = anthropic_tools
         if prefill_text:
             self._add_message("assistant", prefill_text)

@@ -1,3 +1,4 @@
+import json
 from typing import Any, Callable, TYPE_CHECKING
 from anthropic_course.conversation import Conversation
 from anthropic import NOT_GIVEN, NotGiven
@@ -7,6 +8,7 @@ from rich.rule import Rule
 import loguru
 import typer
 
+from anthropic_course.text_editor import TextEditor, get_text_edit_schema
 from anthropic_course.tools import add_duration_to_datetime, add_duration_to_datetime_schema, create_tool, get_current_datetime, get_current_datetime_schema, set_reminder, set_reminder_schema
 
 if TYPE_CHECKING:
@@ -21,7 +23,7 @@ class Chat:
         self.console = Console()
         self.console.print(Panel(f"I'm {model} and I'm limited to Max tokens: {max_tokens}"))
 
-    def run(self, temperature:float = 0.0, prefill_text:str | None = None, stop_sequences=["```"], tools:list["Tool"] = []):
+    def run(self, temperature:float = 0.0, prefill_text:str | None = None, stop_sequences=["```"], tools:list["Tool"] | list[dict[str, Any]] = [], streaming:bool = False):
         while True:
             try:
                 self.console.print(Rule("[bold blue]User[/bold blue]"))
@@ -31,14 +33,13 @@ class Chat:
                                                        text=user_input, 
                                                        prefill_text=prefill_text, 
                                                        temperature=temperature, 
-                                                       streaming=True, 
+                                                       streaming=streaming, 
                                                        stop_sequences=stop_sequences,
                                                        tools=tools)
-                
 
                 self.console.print(Rule("[bold blue]Assistant[/bold blue]"))
                 self.console.print(text)
-                # self.console.print(self.conversation)
+                self.console.print(self.conversation)
             except KeyboardInterrupt:
                 logger.info("Ctrl+C pressed. Exiting...")
                 break
@@ -47,6 +48,7 @@ def main(
     model: str = typer.Option("claude-3-5-haiku-20241022", help="The model to use for the chat"),
     max_tokens: int = typer.Option(10, help="The maximum number of tokens to use for the chat"),
     system_msg: str = typer.Option(NOT_GIVEN, help="The system message to use for the chat"),
+    streaming: bool = typer.Option(False, help="Whether to stream the response"),
 ):
     chat = Chat(model=model, max_tokens=max_tokens, system_msg=system_msg)
     
@@ -70,8 +72,18 @@ def main(
         function=set_reminder,
         input_schema=set_reminder_schema["input_schema"]
     )
+    
+    # Text editor tool is schema-less and doesn't need input_schema
+    # text_editor_tool = get_text_edit_schema(model)
+    text_editor_tool = create_tool(
+        name="str_replace_editor",
+        description="Edits a text file. This tool allows the user to perform various operations on a text file, including viewing its contents, replacing specific text, creating new files, inserting text at specific lines, and undoing previous edits. It should be used when a user wants to modify or create a text file, or when they need to undo previous changes. The tool provides a flexible and efficient way to manage text files with a focus on simplicity and ease of use.",
+        function=None,
+        input_schema=get_text_edit_schema(model)
+    )
         
-    chat.run(tools=[get_current_datetime_tool, add_duration_to_datetime_tool, set_reminder_tool])
+    # chat.run(tools=[get_current_datetime_tool, add_duration_to_datetime_tool, set_reminder_tool, text_editor_tool], streaming=streaming)
+    chat.run(tools=[get_current_datetime_tool,text_editor_tool], streaming=streaming)
 
 if __name__ == "__main__":
     typer.run(main)
