@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv:*)",
+      "Bash(ls:*)",
+      "Bash(.venv/bin/pip:*)",
+      "Bash(.venv/bin/python -m pip list:*)",
+      "mcp__documents__document_path_to_markdown",
+      "Bash(mkdir:*)",
+      "Bash(git worktree:*)",
+      "Bash(cursor:*)"
+    ],
+    "deny": []
+  }
+}
