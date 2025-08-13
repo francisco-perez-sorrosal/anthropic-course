@@ -155,7 +155,9 @@ class Conversation:
              stop_sequences:list[str] = [], 
              tools:List[Union["Tool", dict[str, Any]]] = []) -> tuple[Message, str]:
         self._add_message(role, text)
-        self.params["system"] = self.system_msg
+        if self.system_msg is not NOT_GIVEN:
+            logger.warning("Adding cache control to system message")
+            self.params["system"] = [{"type": "text", "text": self.system_msg, "cache_control": {"type": "ephemeral"}}]
         self.params["messages"] = self.messages
         self.params["temperature"] = temperature
         self.params["stop_sequences"] = stop_sequences
@@ -176,7 +178,14 @@ class Conversation:
                 else:
                     # For regular Tool objects, use to_anthropic_format
                     anthropic_tools.append(tool.to_anthropic_format())
+                    
+        if anthropic_tools:
+            logger.info("Adding cache control to last tool")
+            last_tool = anthropic_tools[-1].copy()
+            last_tool["cache_control"] = {"type": "ephemeral"}
+            anthropic_tools[-1] = last_tool
         self.params["tools"] = anthropic_tools
+            
         if self.params["model"].startswith("claude-3-5"):
             logger.warning("Using computer-use-2024-10-22 beta for claude-3-5 models")
             logger.warning("Current tools: ", tools)
